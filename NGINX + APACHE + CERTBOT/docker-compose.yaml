@@ -1,0 +1,47 @@
+version: '3.3'
+
+services:
+  nginx:
+    image: barmaley0brom/mybucket-imgs:docker_nginx
+#    build: ./Df-nginx/
+    container_name: nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    restart: always    
+    volumes:
+      - ./nginx/conf.d/:/etc/nginx/conf.d/:ro      #:ro read-only for contrainer
+      - ./nginx/www/html/:/usr/share/nginx/html/
+      - ./nginx/www/html/music/:/usr/share/nginx/html/music/
+      - ./nginx/pics/:/usr/share/nginx/html/pics/
+
+      - ./nginx/logs/:/var/log/nginx/
+
+      - ./certbot/www/:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+
+  apache2:
+#    build: ./Df-apache+php/
+    image: barmaley0brom/mybucket-imgs:docker_apache
+    container_name: apache
+    ports:
+      - '8080:80'    
+    links:
+      - nginx
+    depends_on:
+      - 'nginx'  #name service
+
+
+  certbot:
+    image: barmaley0brom/mybucket-imgs:certbot
+#    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+      
+    #Проверяет каждые 12 часов, нужны ли новые сертификаты
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    depends_on:
+      - 'nginx'
+#    command: certonly --webroot --webroot-path=/var/www/html --email test@playsdev.com --agree-tos --no-eff-email --force-renewal -d playsdev.ddns.net -d www.playsdev.ddns.net
